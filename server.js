@@ -18,13 +18,25 @@ const verify_token = process.env.WHATSAPP_VERIFY_TOKEN || "Admin1#";
 
 // =================== Send WhatsApp Message API ===================
 app.post("/send-message", async (req, res) => {
-  const { to, message } = req.body;
+  let { to, message } = req.body;
 
   if (!to || !message) {
     return res.status(400).json({ error: "Missing 'to' or 'message' fields" });
   }
 
   try {
+    // ================= Sanitize and Fix Number =================
+    to = to.replace(/[\s\-\+]/g, ""); // Remove spaces, hyphens, pluses
+
+    if (to.length === 10) {
+      // If only 10 digits, add 91
+      to = "91" + to;
+    } else if (to.length === 12 && to.startsWith("91")) {
+      // already correct
+    } else {
+      return res.status(400).json({ error: "Invalid phone number format" });
+    }
+
     const url = `https://graph.facebook.com/v19.0/${phoneId}/messages`;
 
     const payload = {
@@ -53,6 +65,7 @@ app.post("/send-message", async (req, res) => {
     });
   }
 });
+
 
 // =================== Webhook Verification API ===================
 app.get("/webhook", (req, res) => {
