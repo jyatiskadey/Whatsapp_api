@@ -3,7 +3,6 @@
 const express = require("express");
 const axios = require("axios");
 const cors = require("cors"); 
-const  mongoose  = require("mongoose");
 require("dotenv").config();
 
 const app = express();
@@ -73,15 +72,11 @@ app.get("/webhook", (req, res) => {
 
   res.sendStatus(400);
 });
-// MongoDB connection setup
-mongoose.connect("mongodb+srv://jyatiskadey:Admin1#@whatsapp.sjzsavo.mongodb.net/?retryWrites=true&w=majority&appName=whatsapp", {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
 
 // =================== Webhook Message Receiver ===================
-// This is the existing route for receiving webhook messages
-app.post("/webhook", async (req, res) => {
+let latestMessages = [];
+
+app.post("/webhook", (req, res) => {
   const body = req.body;
 
   if (body.object === "whatsapp_business_account") {
@@ -90,18 +85,12 @@ app.post("/webhook", async (req, res) => {
     if (entry) {
       const incomingMessage = {
         from: entry.from,
-        message: entry.text?.body || "[non-text message]",
-        timestamp: new Date(entry.timestamp * 1000), // Convert timestamp to Date object
+        msg: entry.text?.body || "[non-text message]",
+        timestamp: entry.timestamp,
       };
 
-      // Save the incoming message to MongoDB using the Message model
-      try {
-        const message = new Message(incomingMessage);
-        await message.save();
-        console.log("📥 New incoming message saved to database:", incomingMessage);
-      } catch (error) {
-        console.error("Error saving message to database:", error);
-      }
+      latestMessages.push(incomingMessage);
+      console.log("📥 New incoming message:", incomingMessage);
     }
 
     res.sendStatus(200);
