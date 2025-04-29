@@ -73,7 +73,7 @@ app.get("/webhook", (req, res) => {
   res.sendStatus(400);
 });
 // MongoDB connection setup
-mongoose.connect("mongodb://localhost:27017/whatsapp", {
+mongoose.connect("mongodb+srv://jyatiskadey:Admin1#@whatsapp.sjzsavo.mongodb.net/?retryWrites=true&w=majority&appName=whatsapp", {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 });
