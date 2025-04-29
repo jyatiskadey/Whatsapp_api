@@ -1,3 +1,5 @@
+// =================== WhatsApp API Server ===================
+
 const express = require("express");
 const axios = require("axios");
 require("dotenv").config();
@@ -5,59 +7,69 @@ require("dotenv").config();
 const app = express();
 app.use(express.json());
 
+// =================== Constants ===================
 const token = process.env.WHATSAPP_TOKEN;
 const phoneId = process.env.WHATSAPP_PHONE_ID;
+const verify_token = process.env.WHATSAPP_VERIFY_TOKEN || "Admin1#";
 
-// ============ Send WhatsApp Message API ============
+// =================== Send WhatsApp Message API ===================
 app.post("/send-message", async (req, res) => {
   const { to, message } = req.body;
 
-  try {
-    const response = await axios.post(
-      `https://graph.facebook.com/v19.0/${phoneId}/messages`,
-      {
-        messaging_product: "whatsapp",
-        to: to,
-        type: "text",
-        text: {
-          body: message,
-        },
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+  if (!to || !message) {
+    return res.status(400).json({ error: "Missing 'to' or 'message' fields" });
+  }
 
-    res.status(200).json({ status: "Message sent ✅", data: response.data });
+  try {
+    const url = `https://graph.facebook.com/v19.0/${phoneId}/messages`;
+
+    const payload = {
+      messaging_product: "whatsapp",
+      to,
+      type: "text",
+      text: { body: message },
+    };
+
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
+
+    const response = await axios.post(url, payload, { headers });
+
+    res.status(200).json({
+      status: "✅ Message sent successfully",
+      data: response.data,
+    });
   } catch (error) {
-    console.error("Send message error:", error.response?.data || error.message);
-    res.status(500).json({ error: "Failed to send message", details: error.response?.data });
+    console.error("❌ Error sending message:", error.response?.data || error.message);
+    res.status(500).json({
+      error: "Failed to send message",
+      details: error.response?.data || error.message,
+    });
   }
 });
 
-
-// ===================Webhook Verification===================
+// =================== Webhook Verification API ===================
 app.get("/webhook", (req, res) => {
-  const verify_token = "Admin1#";
-
   const mode = req.query["hub.mode"];
-  const token = req.query["hub.verify_token"];
+  const tokenFromMeta = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
 
-  if (mode && token) {
-    if (mode === "subscribe" && token === verify_token) {
-      console.log("✅ Webhook verified!");
-      res.status(200).send(challenge);
+  if (mode && tokenFromMeta) {
+    if (mode === "subscribe" && tokenFromMeta === verify_token) {
+      console.log("✅ Webhook verified successfully!");
+      return res.status(200).send(challenge);
     } else {
-      res.sendStatus(403);
+      console.warn("⚠️ Webhook verification failed: wrong token");
+      return res.sendStatus(403);
     }
   }
+
+  res.sendStatus(400);
 });
 
-// ===================Webhook Message Receiver===================
+// =================== Webhook Message Receiver ===================
 let latestMessages = [];
 
 app.post("/webhook", (req, res) => {
@@ -67,14 +79,14 @@ app.post("/webhook", (req, res) => {
     const entry = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
 
     if (entry) {
-      const msg = {
+      const incomingMessage = {
         from: entry.from,
         msg: entry.text?.body || "[non-text message]",
         timestamp: entry.timestamp,
       };
 
-      latestMessages.push(msg);
-      console.log("📥 New Message:", msg);
+      latestMessages.push(incomingMessage);
+      console.log("📥 New incoming message:", incomingMessage);
     }
 
     res.sendStatus(200);
@@ -83,12 +95,23 @@ app.post("/webhook", (req, res) => {
   }
 });
 
-// =================== API to Get Messages ===================
+// =================== Get Latest Messages API ===================
 app.get("/messages", (req, res) => {
-  res.json(latestMessages);
+  res.status(200).json({
+    status: "✅ Latest messages fetched successfully",
+    count: latestMessages.length,
+    messages: latestMessages,
+  });
 });
 
-// ============ Server Start ============
-app.listen(5000, () => {
-  console.log("🚀 Server running on http://localhost:5000");
+// =================== Health Check API ===================
+app.get("/", (req, res) => {
+  res.send("✅ WhatsApp API Server is running!");
+});
+
+// =================== Server Start ===================
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`🚀 Server started at http://localhost:${PORT}`);
 });
