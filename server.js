@@ -2,10 +2,14 @@
 
 const express = require("express");
 const axios = require("axios");
+const cors = require("cors"); 
 require("dotenv").config();
 
 const app = express();
-app.use(express.json());
+
+// =================== Middlewares ===================
+app.use(cors()); // Enable CORS
+app.use(express.json()); // Parse JSON bodies
 
 // =================== Constants ===================
 const token = process.env.WHATSAPP_TOKEN;
