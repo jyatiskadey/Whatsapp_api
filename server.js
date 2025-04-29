@@ -115,9 +115,10 @@ app.get("/messages", (req, res) => {
   res.status(200).json({
     status: "✅ Latest messages fetched successfully",
     count: latestMessages.length,
-    messages: latestMessages,
+    messages: [...latestMessages].reverse(), // latest first without mutating original
   });
 });
+
 
 // =================== Health Check API ===================
 app.get("/", (req, res) => {
