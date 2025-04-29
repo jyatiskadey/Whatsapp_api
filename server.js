@@ -17,7 +17,7 @@ const phoneId = process.env.WHATSAPP_PHONE_ID;
 const verify_token = process.env.WHATSAPP_VERIFY_TOKEN || "Admin1#";
 
 // =================== Send WhatsApp Message API ===================
-app.post("/send-message", async (req, res) => {
+app.post("/send-message", async (req, res) => {  
   const { to, message } = req.body;
 
   if (!to || !message) {
