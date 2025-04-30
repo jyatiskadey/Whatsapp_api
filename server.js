@@ -1,15 +1,35 @@
 // =================== WhatsApp API Server ===================
-
 const express = require("express");
 const axios = require("axios");
-const cors = require("cors"); 
+const cors = require("cors");
 require("dotenv").config();
+const mongoose = require("mongoose");
 
 const app = express();
 
 // =================== Middlewares ===================
-app.use(cors()); // Enable CORS
-app.use(express.json()); // Parse JSON bodies
+app.use(cors());
+app.use(express.json());
+
+// =================== MongoDB Setup ===================
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+.then(() => console.log("✅ Connected to MongoDB"))
+.catch((err) => {
+  console.error("❌ MongoDB connection error:", err.message);
+  process.exit(1);
+});
+
+// =================== Mongoose Schema ===================
+const messageSchema = new mongoose.Schema({
+  from: String,
+  msg: String,
+  timestamp: String,
+}, { timestamps: true });
+
+const MessageModel = mongoose.model("Message", messageSchema);
 
 // =================== Constants ===================
 const token = process.env.WHATSAPP_TOKEN;
@@ -17,7 +37,7 @@ const phoneId = process.env.WHATSAPP_PHONE_ID;
 const verify_token = process.env.WHATSAPP_VERIFY_TOKEN || "Admin1#";
 
 // =================== Send WhatsApp Message API ===================
-app.post("/send-message", async (req, res) => {  
+app.post("/send-message", async (req, res) => {
   const { to, message } = req.body;
 
   if (!to || !message) {
@@ -74,8 +94,6 @@ app.get("/webhook", (req, res) => {
 });
 
 // =================== Webhook Message Receiver ===================
-let latestMessages = [];
-
 app.post("/webhook", async (req, res) => {
   const body = req.body;
 
@@ -89,15 +107,11 @@ app.post("/webhook", async (req, res) => {
         timestamp: entry.timestamp,
       };
 
-      latestMessages.push(incomingMessage);
-      console.log("📥 New incoming message:", incomingMessage);
-
-      // Save to MongoDB
       try {
         await MessageModel.create(incomingMessage);
-        console.log("✅ Message saved to DB");
+        console.log("📥 Message saved to DB:", incomingMessage);
       } catch (err) {
-        console.error("❌ Error saving message to DB:", err.message);
+        console.error("❌ Failed to save message:", err.message);
       }
     }
 
@@ -107,24 +121,22 @@ app.post("/webhook", async (req, res) => {
   }
 });
 
-
-// =================== Get Latest Messages API ===================
+// =================== Get Latest Messages from DB ===================
 app.get("/messages", async (req, res) => {
   try {
-    const messages = await MessageModel.find().sort({ createdAt: -1 }); // latest first
+    const messages = await MessageModel.find().sort({ createdAt: -1 });
     res.status(200).json({
-      status: "✅ Messages fetched from DB",
+      status: "✅ Latest messages fetched successfully",
       count: messages.length,
       messages,
     });
   } catch (error) {
+    console.error("❌ DB Fetch Error:", error.message);
     res.status(500).json({ error: "Failed to fetch messages from DB" });
   }
 });
 
-
-
-// =================== Health Check API ===================
+// =================== Health Check ===================
 app.get("/", (req, res) => {
   res.send("✅ WhatsApp API Server is running!");
 });
