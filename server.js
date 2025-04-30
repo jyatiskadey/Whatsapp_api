@@ -27,6 +27,7 @@ const messageSchema = new mongoose.Schema({
   from: String,
   msg: String,
   timestamp: String,
+  group: String, // Added group field
 }, { timestamps: true });
 
 const MessageModel = mongoose.model("Message", messageSchema);
@@ -99,12 +100,19 @@ app.post("/webhook", async (req, res) => {
 
   if (body.object === "whatsapp_business_account") {
     const entry = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+    const metadata = body.entry?.[0]?.changes?.[0]?.value?.metadata;
 
     if (entry) {
+      const groupName =
+        metadata?.display_phone_number || // Optional custom group info
+        entry.context?.group_id ||        // Baileys-style
+        "Individual";                     // Default if not a group
+
       const incomingMessage = {
         from: entry.from,
         msg: entry.text?.body || "[non-text message]",
         timestamp: entry.timestamp,
+        group: groupName,
       };
 
       try {
