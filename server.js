@@ -76,7 +76,7 @@ app.get("/webhook", (req, res) => {
 // =================== Webhook Message Receiver ===================
 let latestMessages = [];
 
-app.post("/webhook", (req, res) => {
+app.post("/webhook", async (req, res) => {
   const body = req.body;
 
   if (body.object === "whatsapp_business_account") {
@@ -91,6 +91,14 @@ app.post("/webhook", (req, res) => {
 
       latestMessages.push(incomingMessage);
       console.log("📥 New incoming message:", incomingMessage);
+
+      // Save to MongoDB
+      try {
+        await MessageModel.create(incomingMessage);
+        console.log("✅ Message saved to DB");
+      } catch (err) {
+        console.error("❌ Error saving message to DB:", err.message);
+      }
     }
 
     res.sendStatus(200);
@@ -99,14 +107,21 @@ app.post("/webhook", (req, res) => {
   }
 });
 
+
 // =================== Get Latest Messages API ===================
-app.get("/messages", (req, res) => {
-  res.status(200).json({
-    status: "✅ Latest messages fetched successfully",
-    count: latestMessages.length,
-    messages: [...latestMessages].reverse(), // latest first without mutating original
-  });
+app.get("/messages", async (req, res) => {
+  try {
+    const messages = await MessageModel.find().sort({ createdAt: -1 }); // latest first
+    res.status(200).json({
+      status: "✅ Messages fetched from DB",
+      count: messages.length,
+      messages,
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch messages from DB" });
+  }
 });
+
 
 
 // =================== Health Check API ===================
