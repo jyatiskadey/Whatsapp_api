@@ -39,10 +39,10 @@ const verify_token = process.env.WHATSAPP_VERIFY_TOKEN || "Admin1#";
 
 // =================== Send WhatsApp Message API ===================
 app.post("/send-message", async (req, res) => {
-  const { to, message } = req.body;
+  const { to, message, messageId } = req.body;
 
   if (!to || !message) {
-    return res.status(400).json({ error: "Missing 'to' or 'message' fields" });
+    return res.status(400).json({ error: "Missing 'to' or 'message'" });
   }
 
   try {
@@ -53,6 +53,9 @@ app.post("/send-message", async (req, res) => {
       to,
       type: "text",
       text: { body: message },
+      ...(messageId && {
+        context: { message_id: messageId },
+      }),
     };
 
     const headers = {
@@ -63,17 +66,18 @@ app.post("/send-message", async (req, res) => {
     const response = await axios.post(url, payload, { headers });
 
     res.status(200).json({
-      status: "✅ Message sent successfully",
+      status: "✅ Reply sent",
       data: response.data,
     });
   } catch (error) {
-    console.error("❌ Error sending message:", error.response?.data || error.message);
+    console.error("❌ Failed to send message:", error.response?.data || error.message);
     res.status(500).json({
-      error: "Failed to send message",
+      error: "Message send failed",
       details: error.response?.data || error.message,
     });
   }
 });
+
 
 // =================== Webhook Verification API ===================
 app.get("/webhook", (req, res) => {
